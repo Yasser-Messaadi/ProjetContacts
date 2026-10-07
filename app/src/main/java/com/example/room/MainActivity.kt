@@ -116,6 +116,6 @@ fun TopAppBarPrincipale() {
             titleContentColor = MaterialTheme.colorScheme.onPrimary,
             actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
         ),
-        expandedHeight = 35.dp
+        expandedHeight = 45.dp
     )
 }
