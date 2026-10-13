@@ -8,12 +8,12 @@ import androidx.room.PrimaryKey
 data class Contact(
     @PrimaryKey(autoGenerate = true)
     val uid: Int = 0,
-    val prenom: String, // Obligatoire sans défaut
-    val nom: String, // Obligatoire sans défaut
-    val telephone: String, // Obligatoire sans défaut
-    val courriel: String? = null,
-    val adresse: String? = null,
-    val age: Int? = null,
+    var prenom: String, // Obligatoire sans défaut
+    var nom: String, // Obligatoire sans défaut
+    var telephone: String, // Obligatoire sans défaut
+    var courriel: String? = null,
+    var adresse: String? = null,
+    var age: Int? = null,
     var favori: Boolean = false
     //val photo: Image? = null
 )

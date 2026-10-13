@@ -3,13 +3,13 @@
 package com.example.room
 
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,10 +20,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -37,16 +37,12 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.room.data.Contact
 import com.example.room.data.ContactViewModel
 import com.example.room.ui.theme.RoomTheme
@@ -59,6 +55,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             RoomTheme {
+                contactViewModel.add(Contact(prenom = "John", nom = "Doe", telephone = "(514)-123-4567"))
                 ListeContactApp(
                     contactViewModel
                 )
@@ -66,41 +63,63 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-enum class Ecran { LISTE, MODIF }
-@Composable
-fun ListeContactApp(contactViewModel: ContactViewModel,modifier: Modifier = Modifier) {
-    val context = LocalContext.current
 
+enum class Ecran { LISTE, MODIF, AJOUT }
+@Composable
+fun ListeContactApp(contactViewModel: ContactViewModel) {
     val contacts by contactViewModel.contacts.collectAsState()
     var ecran by remember { mutableStateOf(Ecran.LISTE) }
+    var selectionContact by remember { mutableStateOf<Contact?>(null) }
 
-    var selectionContact by remember { mutableStateOf(contacts[0]) }
+    if (contacts.isEmpty()) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+    } else {
+        when (ecran) {
+            Ecran.LISTE -> ContactListeView(
+                contactViewModel,
+                clicContact = {
+                    selectionContact = it
+                    ecran = Ecran.MODIF},
+                ecran = ecran)
 
-    when (ecran) {
-        Ecran.LISTE -> ContactListeView(contactViewModel)
-        Ecran.MODIF -> ModifierContact(selectionContact, modifier)
+            Ecran.MODIF -> selectionContact?.let {
+                ModifierAjouterContact(
+                    contactViewModel,
+                    contact = it,
+                    clicRetour = {
+                        ecran = Ecran.LISTE},
+                    Ajouter = false
+                )
+            }
+            Ecran.AJOUT -> ModifierAjouterContact(
+                contactViewModel,
+                contact = Contact(prenom = "Prenom (Obligatoire)", nom = "Nom (Obligatoire)", telephone = "Telephone (Obligatoire)"),
+                clicRetour = {
+                    ecran = Ecran.LISTE},
+                Ajouter = true
+            )
+        }
     }
 }
 
 @Composable
-fun ContactListeView (contactViewModel: ContactViewModel, modifier: Modifier = Modifier) {
+fun ContactListeView (contactViewModel: ContactViewModel, modifier: Modifier = Modifier, clicContact: (Contact) -> Unit, ecran: Ecran) {
     val contacts by contactViewModel.contacts.collectAsState()
-    contactViewModel.add(Contact(   prenom = "John", nom = "Doe", telephone = "(514)-123-4567"))
-    contactViewModel.add(Contact(   prenom = "prenomTest2", nom = "nomTest", telephone = "telephoneTest"))
-    contactViewModel.add(Contact(   prenom = "prenomTest3", nom = "nomTest", telephone = "telephoneTest"))
-    contactViewModel.add(Contact(   prenom = "prenomTest4", nom = "nomTest", telephone = "telephoneTest"))
 
     Scaffold(
         topBar = {
-            TopAppBarPrincipale()
+            TopAppBarPrincipale(ecran)
         },
         modifier = modifier.fillMaxSize()
     ) { padding ->
-        LazyColumn(modifier = modifier.padding(padding))
+        LazyColumn(modifier = modifier.padding(padding)
+        )
         {
             items(contacts) { contact ->
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(8.dp).clickable{clicContact(contact)},
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     // Ajouter Image Contact
@@ -115,7 +134,7 @@ fun ContactListeView (contactViewModel: ContactViewModel, modifier: Modifier = M
                                 true -> Icons.Default.StarBorder
                                 false -> Icons.Default.Star
                             }
-                            contact.favori = !contact.favori;
+                            contact.favori = !contact.favori
                             contactViewModel.update(contact)}
                         ){ Icon(imageVector = iconeEtoile, contentDescription = "Favori")}
                     }
@@ -127,8 +146,11 @@ fun ContactListeView (contactViewModel: ContactViewModel, modifier: Modifier = M
 }
 
 @Composable
-fun ModifierContact(contact: Contact, modifier: Modifier = Modifier)
+fun ModifierAjouterContact(contactViewModel: ContactViewModel, contact: Contact, modifier: Modifier = Modifier, clicRetour: () -> Unit, Ajouter: Boolean)
 {
+    // Modifier et ajouter un contact utilisent la meme fonction;
+    // si Ajouter est vrai, un nouveau contact est créé avec ces info, sinon un contact existant est mis a jour
+
     var prenom by remember { mutableStateOf(contact.prenom) }
     var nom by remember { mutableStateOf(contact.nom) }
     var age by remember { mutableStateOf(contact.age) }
@@ -136,9 +158,7 @@ fun ModifierContact(contact: Contact, modifier: Modifier = Modifier)
     var courriel by remember { mutableStateOf(contact.courriel) }
     var adresse by remember { mutableStateOf(contact.adresse) }
 
-
     Column(modifier = modifier) {
-
         OutlinedTextField(
             value = prenom,
             onValueChange = { prenom = it },
@@ -180,8 +200,25 @@ fun ModifierContact(contact: Contact, modifier: Modifier = Modifier)
             )
         }
         Row {
-            Button(onClick = { }, modifier = Modifier.padding(8.dp)) { Text(text = "Sauvegarder") }
-            Button(onClick = { }, modifier = Modifier.padding(8.dp)) { Text(text = "Retourner") }
+            Button(onClick = {
+                clicRetour()
+                contact.prenom = prenom
+                contact.nom = nom
+                contact.age = age
+                contact.telephone = telephone
+                contact.courriel = courriel
+                contact.adresse = adresse
+                if(Ajouter){
+                    contactViewModel.add(contact)
+                }
+                else{
+                    contactViewModel.update(contact)
+                }
+        }, modifier = Modifier.padding(8.dp)) { Text(text = "Sauvegarder") }
+
+            Button(onClick = {
+                clicRetour()
+            }, modifier = Modifier.padding(8.dp)) { Text(text = "Retourner") }
         }
 
     }
@@ -190,12 +227,14 @@ fun ModifierContact(contact: Contact, modifier: Modifier = Modifier)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBarPrincipale() {
+fun TopAppBarPrincipale(ecran: Ecran) {
     TopAppBar(
         title = { Text(text = "Contact App") },
         actions = {
             IconButton(
-                onClick = { /* onClick */ }
+                onClick = {
+                    // ecran = Ecran.AJOUT
+                }
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
