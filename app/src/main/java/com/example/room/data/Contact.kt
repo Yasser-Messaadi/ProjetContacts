@@ -11,9 +11,9 @@ data class Contact(
     var prenom: String, // Obligatoire sans défaut
     var nom: String, // Obligatoire sans défaut
     var telephone: String, // Obligatoire sans défaut
-    var courriel: String? = null,
-    var adresse: String? = null,
-    var age: Int? = null,
+    var courriel: String? = "",
+    var adresse: String? = "",
+    var age: Int? = 0,
     var favori: Boolean = false
     //val photo: Image? = null
 )

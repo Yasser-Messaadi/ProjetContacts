@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
@@ -42,6 +43,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.room.data.Contact
 import com.example.room.data.ContactViewModel
@@ -82,7 +84,9 @@ fun ListeContactApp(contactViewModel: ContactViewModel) {
                 clicContact = {
                     selectionContact = it
                     ecran = Ecran.MODIF},
-                ecran = ecran)
+                clicAjout = {
+                    ecran = Ecran.AJOUT
+                })
 
             Ecran.MODIF -> selectionContact?.let {
                 ModifierAjouterContact(
@@ -90,27 +94,27 @@ fun ListeContactApp(contactViewModel: ContactViewModel) {
                     contact = it,
                     clicRetour = {
                         ecran = Ecran.LISTE},
-                    Ajouter = false
+                    ajouter = false
                 )
             }
             Ecran.AJOUT -> ModifierAjouterContact(
                 contactViewModel,
-                contact = Contact(prenom = "Prenom (Obligatoire)", nom = "Nom (Obligatoire)", telephone = "Telephone (Obligatoire)"),
+                contact = Contact(prenom = "Prenom", nom = "Nom", telephone = "Telephone"),
                 clicRetour = {
                     ecran = Ecran.LISTE},
-                Ajouter = true
+                ajouter = true
             )
         }
     }
 }
 
 @Composable
-fun ContactListeView (contactViewModel: ContactViewModel, modifier: Modifier = Modifier, clicContact: (Contact) -> Unit, ecran: Ecran) {
+fun ContactListeView (contactViewModel: ContactViewModel, modifier: Modifier = Modifier, clicContact: (Contact) -> Unit,clicAjout: () -> Unit) {
     val contacts by contactViewModel.contacts.collectAsState()
 
     Scaffold(
         topBar = {
-            TopAppBarPrincipale(ecran)
+            TopAppBarPrincipale(clicAjout)
         },
         modifier = modifier.fillMaxSize()
     ) { padding ->
@@ -146,10 +150,10 @@ fun ContactListeView (contactViewModel: ContactViewModel, modifier: Modifier = M
 }
 
 @Composable
-fun ModifierAjouterContact(contactViewModel: ContactViewModel, contact: Contact, modifier: Modifier = Modifier, clicRetour: () -> Unit, Ajouter: Boolean)
+fun ModifierAjouterContact(contactViewModel: ContactViewModel, contact: Contact, modifier: Modifier = Modifier, clicRetour: () -> Unit, ajouter: Boolean)
 {
     // Modifier et ajouter un contact utilisent la meme fonction;
-    // si Ajouter est vrai, un nouveau contact est créé avec ces info, sinon un contact existant est mis a jour
+    // Si ajouter est vrai, un nouveau contact est créé avec ces info, sinon un contact existant est mis a jour
 
     var prenom by remember { mutableStateOf(contact.prenom) }
     var nom by remember { mutableStateOf(contact.nom) }
@@ -163,7 +167,7 @@ fun ModifierAjouterContact(contactViewModel: ContactViewModel, contact: Contact,
             value = prenom,
             onValueChange = { prenom = it },
             label = { Text(text = "Prenom") },
-            modifier = Modifier.fillMaxWidth().padding(8.dp)
+            modifier = Modifier.fillMaxWidth().padding(top = 36.dp, start = 8.dp, end = 8.dp, bottom = 8.dp)
         )
         OutlinedTextField(
             value = nom,
@@ -173,8 +177,18 @@ fun ModifierAjouterContact(contactViewModel: ContactViewModel, contact: Contact,
         )
         OutlinedTextField(
             value = age.toString(),
-            onValueChange = { age = it.toInt() },
-            label = { Text(text = "Age") },
+            onValueChange = { newValue: String ->
+                if (newValue.isNotEmpty() && newValue.all { it.isDigit() })
+                    age = newValue.toInt()
+                else{
+                    age = 0
+                }
+            },
+            label = {Text(text = "Age")},
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number
+            ),
+            singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(8.dp)
         )
         OutlinedTextField(
@@ -208,7 +222,7 @@ fun ModifierAjouterContact(contactViewModel: ContactViewModel, contact: Contact,
                 contact.telephone = telephone
                 contact.courriel = courriel
                 contact.adresse = adresse
-                if(Ajouter){
+                if(ajouter){
                     contactViewModel.add(contact)
                 }
                 else{
@@ -227,13 +241,13 @@ fun ModifierAjouterContact(contactViewModel: ContactViewModel, contact: Contact,
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TopAppBarPrincipale(ecran: Ecran) {
+fun TopAppBarPrincipale(clicAjout: () -> Unit) {
     TopAppBar(
         title = { Text(text = "Contact App") },
         actions = {
             IconButton(
                 onClick = {
-                    // ecran = Ecran.AJOUT
+                    clicAjout()
                 }
             ) {
                 Icon(
