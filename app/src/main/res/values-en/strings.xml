@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Contacts App</string>
+    <string name="prenom">First Name</string>
+    <string name="nom">Last Name</string>
+    <string name="telephone">Phone</string>
+    <string name="courriel">E-mail</string>
+    <string name="adresse">Address</string>
+    <string name="sauvegarder">Save</string>
+    <string name="retourner">Back</string>
+    <string name="ajouter_un_contact">Add a contact</string>
+    <string name="modifier_un_contact">Edit a contact</string>
+</resources>

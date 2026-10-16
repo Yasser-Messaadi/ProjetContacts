@@ -3,13 +3,13 @@
 package com.example.room
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,7 +24,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,13 +40,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.room.data.Contact
 import com.example.room.data.ContactViewModel
 import com.example.room.ui.theme.RoomTheme
+
 
 class MainActivity : ComponentActivity() {
     private val contactViewModel: ContactViewModel by viewModels()
@@ -57,7 +57,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             RoomTheme {
-                contactViewModel.add(Contact(prenom = "John", nom = "Doe", telephone = "(514)-123-4567"))
                 ListeContactApp(
                     contactViewModel
                 )
@@ -67,91 +66,116 @@ class MainActivity : ComponentActivity() {
 }
 
 enum class Ecran { LISTE, MODIF, AJOUT }
+
 @Composable
 fun ListeContactApp(contactViewModel: ContactViewModel) {
-    val contacts by contactViewModel.contacts.collectAsState()
+    val contacts by contactViewModel.contacts.collectAsState(initial = null)
     var ecran by remember { mutableStateOf(Ecran.LISTE) }
     var selectionContact by remember { mutableStateOf<Contact?>(null) }
 
-    if (contacts.isEmpty()) {
-        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
-        }
-    } else {
-        when (ecran) {
-            Ecran.LISTE -> ContactListeView(
+    when (ecran) {
+        Ecran.LISTE ->
+            ContactListeView(
                 contactViewModel,
+                contacts,
                 clicContact = {
                     selectionContact = it
-                    ecran = Ecran.MODIF},
+                    ecran = Ecran.MODIF
+                },
                 clicAjout = {
                     ecran = Ecran.AJOUT
                 })
 
-            Ecran.MODIF -> selectionContact?.let {
-                ModifierAjouterContact(
-                    contactViewModel,
-                    contact = it,
-                    clicRetour = {
-                        ecran = Ecran.LISTE},
-                    ajouter = false
-                )
-            }
-            Ecran.AJOUT -> ModifierAjouterContact(
+        Ecran.MODIF -> selectionContact?.let {
+            ModifierAjouterContact(
                 contactViewModel,
-                contact = Contact(prenom = "Prenom", nom = "Nom", telephone = "Telephone"),
+                contact = it,
                 clicRetour = {
-                    ecran = Ecran.LISTE},
-                ajouter = true
+                    ecran = Ecran.LISTE
+                },
+                ajouter = false
             )
         }
+
+        Ecran.AJOUT -> ModifierAjouterContact(
+            contactViewModel,
+            contact = Contact(prenom = stringResource(R.string.prenom), nom = stringResource(R.string.nom), telephone = stringResource(
+                R.string.telephone
+            )),
+            clicRetour = {
+                ecran = Ecran.LISTE
+            },
+            ajouter = true
+        )
+
     }
 }
 
-@Composable
-fun ContactListeView (contactViewModel: ContactViewModel, modifier: Modifier = Modifier, clicContact: (Contact) -> Unit,clicAjout: () -> Unit) {
-    val contacts by contactViewModel.contacts.collectAsState()
 
+@Composable
+fun ContactListeView(
+    contactViewModel: ContactViewModel,
+    contacts: List<Contact>?,
+    modifier: Modifier = Modifier,
+    clicContact: (Contact) -> Unit,
+    clicAjout: () -> Unit
+) {
     Scaffold(
         topBar = {
             TopAppBarPrincipale(clicAjout)
         },
         modifier = modifier.fillMaxSize()
     ) { padding ->
-        LazyColumn(modifier = modifier.padding(padding)
-        )
-        {
-            items(contacts) { contact ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(8.dp).clickable{clicContact(contact)},
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    // Ajouter Image Contact
-                    Text(text = "${contact.prenom} ${contact.nom} \n ${contact.telephone}")
+
+        if (contacts != null) {
+            LazyColumn(
+                modifier = modifier.padding(padding)
+            )
+            {
+                items(contacts) { contact ->
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
-                        horizontalArrangement = Arrangement.End) {
-                        var iconeEtoile by remember { mutableStateOf(Icons.Default.StarBorder) }
-                        IconButton(onClick = {contactViewModel.delete(contact)}){ Icon(imageVector = Icons.Default.Delete, contentDescription = "Effacer") }
-                        IconButton(onClick = {
-                            iconeEtoile = when (contact.favori) {
-                                true -> Icons.Default.StarBorder
-                                false -> Icons.Default.Star
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(8.dp)
+                            .clickable { clicContact(contact) },
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        // Ajouter Image Contact
+                        Text(text = "${contact.prenom} ${contact.nom} \n ${contact.telephone}")
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                            horizontalArrangement = Arrangement.End
+                        ) {
+                            var iconeEtoile by remember { mutableStateOf(Icons.Default.StarBorder) }
+                            IconButton(onClick = {
+                                iconeEtoile = when (contact.favori) {
+                                    true -> Icons.Default.StarBorder
+                                    false -> Icons.Default.Star
+                                }
+                                contact.favori = !contact.favori
+                                contactViewModel.update(contact)
                             }
-                            contact.favori = !contact.favori
-                            contactViewModel.update(contact)}
-                        ){ Icon(imageVector = iconeEtoile, contentDescription = "Favori")}
+                            ) { Icon(imageVector = iconeEtoile, contentDescription = "Favori") }
+                        }
                     }
+                    HorizontalDivider()
                 }
-                HorizontalDivider()
             }
         }
+
     }
 }
 
 @Composable
-fun ModifierAjouterContact(contactViewModel: ContactViewModel, contact: Contact, modifier: Modifier = Modifier, clicRetour: () -> Unit, ajouter: Boolean)
-{
+fun ModifierAjouterContact(
+    contactViewModel: ContactViewModel,
+    contact: Contact,
+    modifier: Modifier = Modifier,
+    clicRetour: () -> Unit,
+    ajouter: Boolean
+) {
     // Modifier et ajouter un contact utilisent la meme fonction;
     // Si ajouter est vrai, un nouveau contact est créé avec ces info, sinon un contact existant est mis a jour
 
@@ -162,79 +186,98 @@ fun ModifierAjouterContact(contactViewModel: ContactViewModel, contact: Contact,
     var courriel by remember { mutableStateOf(contact.courriel) }
     var adresse by remember { mutableStateOf(contact.adresse) }
 
-    Column(modifier = modifier) {
-        OutlinedTextField(
-            value = prenom,
-            onValueChange = { prenom = it },
-            label = { Text(text = "Prenom") },
-            modifier = Modifier.fillMaxWidth().padding(top = 36.dp, start = 8.dp, end = 8.dp, bottom = 8.dp)
-        )
-        OutlinedTextField(
-            value = nom,
-            onValueChange = {nom = it},
-            label = { Text(text = "Nom") },
-            modifier = Modifier.fillMaxWidth().padding(8.dp)
-        )
-        OutlinedTextField(
-            value = age.toString(),
-            onValueChange = { newValue: String ->
-                if (newValue.isNotEmpty() && newValue.all { it.isDigit() })
-                    age = newValue.toInt()
-                else{
-                    age = 0
-                }
-            },
-            label = {Text(text = "Age")},
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Number
-            ),
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(8.dp)
-        )
-        OutlinedTextField(
-            value = telephone,
-            onValueChange = {telephone = it},
-            label = { Text(text = "Téléphone") },
-            modifier = Modifier.fillMaxWidth().padding(8.dp)
-        )
-        courriel?.let { it1 ->
+    Scaffold(
+        topBar = {
+            TopAppBarModif(contact, contactViewModel, ajouter, clicRetour)
+        },
+        modifier = modifier.fillMaxSize()
+    ) { padding ->
+        Column(modifier = modifier.padding(padding)) {
             OutlinedTextField(
-                value = it1,
-                onValueChange = {courriel = it},
-                label = { Text(text = "Courriel") },
-                modifier = Modifier.fillMaxWidth().padding(8.dp)
+                value = prenom,
+                onValueChange = { prenom = it },
+                label = { Text(text = stringResource(R.string.prenom)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
             )
-        }
-        adresse?.let { it1 ->
             OutlinedTextField(
-                value = it1,
-                onValueChange = {adresse = it},
-                label = { Text(text = "Adresse") },
-                modifier = Modifier.fillMaxWidth().padding(8.dp)
+                value = nom,
+                onValueChange = { nom = it },
+                label = { Text(text = stringResource(R.string.nom)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
             )
-        }
-        Row {
-            Button(onClick = {
-                clicRetour()
-                contact.prenom = prenom
-                contact.nom = nom
-                contact.age = age
-                contact.telephone = telephone
-                contact.courriel = courriel
-                contact.adresse = adresse
-                if(ajouter){
-                    contactViewModel.add(contact)
-                }
-                else{
-                    contactViewModel.update(contact)
-                }
-        }, modifier = Modifier.padding(8.dp)) { Text(text = "Sauvegarder") }
+            OutlinedTextField(
+                value = age.toString(),
+                onValueChange = { newValue: String ->
+                    age = if (newValue.isNotEmpty() && newValue.all { it.isDigit() })
+                        newValue.toInt()
+                    else {
+                        0
+                    }
+                },
+                label = { Text(text = "Age") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Number
+                ),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            )
+            OutlinedTextField(
+                value = telephone,
+                onValueChange = { telephone = it },
+                label = { Text(text = stringResource(R.string.telephone)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            )
+            courriel?.let { it1 ->
+                OutlinedTextField(
+                    value = it1,
+                    onValueChange = { courriel = it },
+                    label = { Text(text = stringResource(R.string.courriel)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                )
+            }
+            adresse?.let { it1 ->
+                OutlinedTextField(
+                    value = it1,
+                    onValueChange = { adresse = it },
+                    label = { Text(text = stringResource(R.string.adresse)) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                )
+            }
+            Row {
+                Button(onClick = {
+                    clicRetour()
+                    contact.prenom = prenom
+                    contact.nom = nom
+                    contact.age = age
+                    contact.telephone = telephone
+                    contact.courriel = courriel
+                    contact.adresse = adresse
+                    if (ajouter) {
+                        contactViewModel.add(contact)
+                    } else {
+                        contactViewModel.update(contact)
+                    }
+                }, modifier = Modifier.padding(8.dp)) { Text(text = stringResource(R.string.sauvegarder)) }
+                Button(onClick = {
+                    clicRetour()
+                }, modifier = Modifier.padding(8.dp)) { Text(text = stringResource(R.string.retourner)) }
 
-            Button(onClick = {
-                clicRetour()
-            }, modifier = Modifier.padding(8.dp)) { Text(text = "Retourner") }
-        }
 
+            }
+
+        }
     }
 }
 
@@ -255,6 +298,41 @@ fun TopAppBarPrincipale(clicAjout: () -> Unit) {
                     contentDescription = "Home"
                 )
             }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.primary,
+            titleContentColor = MaterialTheme.colorScheme.onPrimary,
+            actionIconContentColor = MaterialTheme.colorScheme.onPrimary,
+        ),
+        expandedHeight = 45.dp
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TopAppBarModif(contact:Contact, contactViewModel: ContactViewModel, ajouter: Boolean, clicRetour: () -> Unit){
+    val titre = when(ajouter){
+        true -> stringResource(R.string.ajouter_un_contact)
+        false -> stringResource(R.string.modifier_un_contact)
+    }
+
+    TopAppBar(
+        title = { Text(text = titre) },
+        actions = {
+            if(!ajouter){
+                IconButton(
+                    onClick = {
+                        contactViewModel.delete(contact)
+                        clicRetour()
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = "Effacer"
+                    )
+                }
+            }
+
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.primary,

@@ -1,4 +1,13 @@
 <resources>
-    <string name="app_name">Liste Contact</string>
+    <string name="app_name">Liste Contacts</string>
+    <string name="prenom">Prenom</string>
+    <string name="nom">Nom</string>
+    <string name="telephone">Telephone</string>
+    <string name="courriel">Courriel</string>
+    <string name="adresse">Adresse</string>
+    <string name="sauvegarder">Sauvegarder</string>
+    <string name="retourner">Retourner</string>
+    <string name="ajouter_un_contact">Ajouter un contact</string>
+    <string name="modifier_un_contact">Modifier un contact</string>
 
 </resources>
