@@ -3,6 +3,7 @@ package com.example.room.data
 import android.media.Image
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import com.example.room.R
 
 @Entity (tableName = "contacts")
 data class Contact(
@@ -14,6 +15,6 @@ data class Contact(
     var courriel: String? = "",
     var adresse: String? = "",
     var age: Int? = 0,
-    var favori: Boolean = false
-    //val photo: Image? = null
+    var favori: Boolean = false,
+    val photo: String = "android.resource://com.example.room/${R.drawable.pdp_defaut}"
 )
