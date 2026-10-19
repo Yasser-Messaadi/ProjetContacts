@@ -10,4 +10,12 @@
     <string name="retourner">Back</string>
     <string name="ajouter_un_contact">Add a contact</string>
     <string name="modifier_un_contact">Edit a contact</string>
+    <string name="prendre_une_photo">Take photo</string>
+    <string name="gallerie">Gallery</string>
+    <string name="succes">Image loaded successfully</string>
+    <string name="erreur_camera">Image loading error</string>
+    <string name="contact_ajoute">Contact added</string>
+    <string name="contact_modifie">Contact updated</string>
+    <string name="contact_efface">Contact removed</string>
+
 </resources>

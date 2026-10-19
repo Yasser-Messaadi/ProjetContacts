@@ -16,5 +16,5 @@ data class Contact(
     var adresse: String? = "",
     var age: Int? = 0,
     var favori: Boolean = false,
-    val photo: String = "android.resource://com.example.room/${R.drawable.pdp_defaut}"
+    var photo: String = "android.resource://com.example.room/${R.drawable.pdp_defaut}"
 )

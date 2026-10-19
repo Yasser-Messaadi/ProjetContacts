@@ -2,23 +2,29 @@
 
 package com.example.room
 
+import android.annotation.SuppressLint
 import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
@@ -38,10 +44,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import coil3.compose.AsyncImage
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -68,7 +74,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class Ecran { LISTE, MODIF, AJOUT }
+enum class Ecran { LISTE, MODIF, AJOUT, LISTEFILTREE }
 
 @Composable
 fun ListeContactApp(
@@ -89,7 +95,29 @@ fun ListeContactApp(
                 },
                 clicAjout = {
                     ecran = Ecran.AJOUT
-                })
+                },
+                clicFiltre = {
+                    ecran = Ecran.LISTEFILTREE
+                },
+                filtre = false
+            )
+
+        Ecran.LISTEFILTREE ->
+            ContactListeView(
+                contactViewModel,
+                contacts,
+                clicContact = {
+                    selectionContact = it
+                    ecran = Ecran.MODIF
+                },
+                clicAjout = {
+                    ecran = Ecran.AJOUT
+                },
+                clicFiltre = {
+                    ecran = Ecran.LISTE
+                },
+                filtre = true
+            )
 
         Ecran.MODIF -> selectionContact?.let {
             ModifierAjouterContact(
@@ -120,18 +148,19 @@ fun ListeContactApp(
     }
 }
 
-
 @Composable
 fun ContactListeView(
     contactViewModel: ContactViewModel,
     contacts: List<Contact>?,
     modifier: Modifier = Modifier,
     clicContact: (Contact) -> Unit,
-    clicAjout: () -> Unit
+    clicAjout: () -> Unit,
+    clicFiltre: () -> Unit,
+    filtre: Boolean
 ) {
     Scaffold(
         topBar = {
-            TopAppBarPrincipale(clicAjout)
+            TopAppBarPrincipale(clicAjout,clicFiltre, filtre)
         },
         modifier = modifier.fillMaxSize()
     ) { padding ->
@@ -141,7 +170,10 @@ fun ContactListeView(
                 modifier = modifier.padding(padding)
             )
             {
-                items(contacts) { contact ->
+                items(items = contacts.filter { contact ->
+                    contact.favori || !filtre
+                })
+                { contact ->
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -169,15 +201,22 @@ fun ContactListeView(
                             horizontalArrangement = Arrangement.End
                         ) {
                             var iconeEtoile by remember { mutableStateOf(Icons.Default.StarBorder) }
-                            IconButton(onClick = {
-                                iconeEtoile = when (contact.favori) {
-                                    true -> Icons.Default.StarBorder
-                                    false -> Icons.Default.Star
-                                }
-                                contact.favori = !contact.favori
-                                contactViewModel.update(contact)
+                            iconeEtoile = when (contact.favori) {
+                                true -> Icons.Default.Star
+                                false -> Icons.Default.StarBorder
                             }
-                            ) { Icon(imageVector = iconeEtoile, contentDescription = "Favori") }
+                            if(!filtre){
+                                IconButton(onClick = {
+                                    contact.favori = !contact.favori
+                                    iconeEtoile = when (contact.favori) {
+                                        true -> Icons.Default.Star
+                                        false -> Icons.Default.StarBorder
+                                    }
+                                    contactViewModel.update(contact)
+                            }
+                            ) { Icon(imageVector = iconeEtoile, contentDescription = "Favori") }}
+                            else{Icon(imageVector = Icons.Default.Star, contentDescription = "Favori") }
+
                         }
                     }
                     HorizontalDivider()
@@ -188,6 +227,7 @@ fun ContactListeView(
     }
 }
 
+@SuppressLint("LocalContextGetResourceValueCall")
 @Composable
 fun ModifierAjouterContact(
     contactViewModel: ContactViewModel,
@@ -205,19 +245,107 @@ fun ModifierAjouterContact(
     var courriel by remember { mutableStateOf(contact.courriel) }
     var adresse by remember { mutableStateOf(contact.adresse) }
 
+    val context = LocalContext.current;
+
+    var uriAttente by remember {
+        mutableStateOf<Uri?>(null)
+    }
+
+    var photoUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
+
+    var imageChoisie by remember {
+        mutableStateOf<Uri?>(contact.photo.toUri())
+    }
+
+    val choisirImage = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+            photoUri = uri
+            imageChoisie = uri
+            Toast.makeText(context, context.getString(R.string.succes), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val prendrePhoto = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { succes ->
+        val uri = uriAttente
+        if (succes && uri != null) {
+            photoUri = uri
+            imageChoisie = uri
+            Toast.makeText(context, context.getString(R.string.succes), Toast.LENGTH_SHORT).show()
+        } else if (uri != null) {
+            context.contentResolver.delete(uri, null, null)
+            Toast.makeText(context, context.getString(R.string.erreur_camera), Toast.LENGTH_SHORT)
+                .show()
+
+        }
+        uriAttente = null
+    }
+
     Scaffold(
         topBar = {
             TopAppBarModif(contact, contactViewModel, ajouter, clicRetour)
         },
         modifier = modifier.fillMaxSize()
     ) { padding ->
+        val tailleBouton = 150.dp
+
         Column(modifier = modifier.padding(padding)) {
-            Button(
-                onClick = {},
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp)
-            ) { Text(text = "Prendre Une Photo") }
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                AsyncImage(
+                    model = imageChoisie,
+                    contentScale = ContentScale.Inside,
+                    contentDescription = "",
+                    modifier = Modifier
+                        .size(150.dp)
+                        .padding(top = 8.dp)
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Button(
+                    onClick = {
+                        val uri = creationUriImage(context)
+                            ?: return@Button
+                        uriAttente = uri
+                        try {
+                            prendrePhoto.launch(uri)
+                        } catch (e: ActivityNotFoundException) {
+                            context.contentResolver.delete(uri, null, null)
+                            uriAttente = null
+                        }
+
+                    },
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .width(tailleBouton)
+                ) { Text(text = stringResource(R.string.prendre_une_photo)) }
+                Button(
+                    onClick = {
+                        val request = PickVisualMediaRequest(
+                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                        )
+                        choisirImage.launch(request)
+                    },
+                    modifier = Modifier
+                        .padding(8.dp)
+                        .width(tailleBouton)
+                ) { Text(text = stringResource(R.string.gallerie)) }
+            }
 
             OutlinedTextField(
                 value = prenom,
@@ -281,7 +409,11 @@ fun ModifierAjouterContact(
                         .padding(8.dp)
                 )
             }
-            Column {
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Button(
                     onClick = {
                         clicRetour()
@@ -291,19 +423,36 @@ fun ModifierAjouterContact(
                         contact.telephone = telephone
                         contact.courriel = courriel
                         contact.adresse = adresse
+                        if (photoUri != null)
+                            contact.photo = photoUri.toString()
                         if (ajouter) {
                             contactViewModel.add(contact)
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.contact_ajoute),
+                                Toast.LENGTH_SHORT
+                            ).show()
                         } else {
                             contactViewModel.update(contact)
+                            Toast.makeText(
+                                context,
+                                context.getString(R.string.contact_modifie),
+                                Toast.LENGTH_SHORT
+                            ).show()
+
                         }
                     },
-                    modifier = Modifier.padding(bottom = 4.dp,top = 8.dp, start = 8.dp, end = 8.dp).fillMaxWidth()
+                    modifier = Modifier
+                        .padding(bottom = 4.dp, top = 8.dp, start = 8.dp, end = 8.dp)
+                        .width(tailleBouton)
                 ) { Text(text = stringResource(R.string.sauvegarder)) }
                 Button(
                     onClick = {
                         clicRetour()
                     },
-                    modifier = Modifier.padding(top = 4.dp,bottom = 8.dp, start = 8.dp, end = 8.dp).fillMaxWidth()
+                    modifier = Modifier
+                        .padding(top = 4.dp, bottom = 8.dp, start = 8.dp, end = 8.dp)
+                        .width(tailleBouton)
 
                 ) { Text(text = stringResource(R.string.retourner)) }
 
@@ -313,4 +462,3 @@ fun ModifierAjouterContact(
         }
     }
 }
-
